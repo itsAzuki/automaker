@@ -6,6 +6,7 @@ import { useAppStore } from "@/store/app-store";
 import { useSetupStore } from "@/store/setup-store";
 import { getElectronAPI } from "@/lib/electron";
 import { Toaster } from "sonner";
+import { themeOptions } from "@/config/theme-options";
 
 function RootLayoutContent() {
   const location = useLocation();
@@ -84,10 +85,11 @@ function RootLayoutContent() {
   // Apply theme class to document
   useEffect(() => {
     const root = document.documentElement;
-    root.classList.remove(
-      "dark", "retro", "light", "dracula", "nord", "monokai",
-      "tokyonight", "solarized", "gruvbox", "catppuccin", "onedark", "synthwave", "red"
-    );
+    // Remove all theme classes dynamically from themeOptions
+    const themeClasses = themeOptions
+      .map((option) => option.value)
+      .filter((theme) => theme !== "system");
+    root.classList.remove(...themeClasses);
 
     if (effectiveTheme === "dark") {
       root.classList.add("dark");

@@ -7,15 +7,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
     <script>
-      // Prevent dark mode flash
+      // Prevent theme flash - apply stored theme before React hydrates
       (function() {
         try {
           const stored = localStorage.getItem('automaker-storage');
           if (stored) {
             const data = JSON.parse(stored);
             const theme = data.state?.theme;
-            if (theme === 'dark') {
-              document.documentElement.classList.add('dark');
+            if (theme && theme !== 'system' && theme !== 'light') {
+              // Apply the actual theme class (dark, retro, dracula, nord, etc.)
+              document.documentElement.classList.add(theme);
             } else if (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches) {
               document.documentElement.classList.add('dark');
             }
