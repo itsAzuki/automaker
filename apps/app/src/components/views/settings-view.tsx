@@ -30,6 +30,8 @@ export function SettingsView() {
     setProjectTheme,
     defaultSkipTests,
     setDefaultSkipTests,
+    enableDependencyBlocking,
+    setEnableDependencyBlocking,
     useWorktrees,
     setUseWorktrees,
     showProfilesOnly,
@@ -122,11 +124,13 @@ export function SettingsView() {
           <FeatureDefaultsSection
             showProfilesOnly={showProfilesOnly}
             defaultSkipTests={defaultSkipTests}
+            enableDependencyBlocking={enableDependencyBlocking}
             useWorktrees={useWorktrees}
             defaultPlanningMode={defaultPlanningMode}
             defaultRequirePlanApproval={defaultRequirePlanApproval}
             onShowProfilesOnlyChange={setShowProfilesOnly}
             onDefaultSkipTestsChange={setDefaultSkipTests}
+            onEnableDependencyBlockingChange={setEnableDependencyBlocking}
             onUseWorktreesChange={setUseWorktrees}
             onDefaultPlanningModeChange={setDefaultPlanningMode}
             onDefaultRequirePlanApprovalChange={setDefaultRequirePlanApproval}

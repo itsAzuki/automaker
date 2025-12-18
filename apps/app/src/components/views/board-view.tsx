@@ -10,6 +10,7 @@ import {
 } from "@dnd-kit/core";
 import { useAppStore, Feature } from "@/store/app-store";
 import { getElectronAPI } from "@/lib/electron";
+import { pathsEqual } from "@/lib/utils";
 import { BoardBackgroundModal } from "@/components/dialogs/board-background-modal";
 import { RefreshCw } from "lucide-react";
 import { useAutoMode } from "@/hooks/use-auto-mode";
@@ -31,6 +32,12 @@ import {
   FollowUpDialog,
   PlanApprovalDialog,
 } from "./board-view/dialogs";
+import { CreateWorktreeDialog } from "./board-view/dialogs/create-worktree-dialog";
+import { DeleteWorktreeDialog } from "./board-view/dialogs/delete-worktree-dialog";
+import { CommitWorktreeDialog } from "./board-view/dialogs/commit-worktree-dialog";
+import { CreatePRDialog } from "./board-view/dialogs/create-pr-dialog";
+import { CreateBranchDialog } from "./board-view/dialogs/create-branch-dialog";
+import { WorktreePanel } from "./board-view/worktree-panel";
 import { COLUMNS } from "./board-view/constants";
 import {
   useBoardFeatures,
@@ -44,6 +51,11 @@ import {
   useFollowUpState,
   useSuggestionsState,
 } from "./board-view/hooks";
+
+// Stable empty array to avoid infinite loop in selector
+const EMPTY_WORKTREES: ReturnType<
+  ReturnType<typeof useAppStore.getState>["getWorktrees"]
+> = [];
 
 export function BoardView() {
   const {
@@ -60,6 +72,10 @@ export function BoardView() {
     pendingPlanApproval,
     setPendingPlanApproval,
     updateFeature,
+    getCurrentWorktree,
+    setCurrentWorktree,
+    getWorktrees,
+    setWorktrees,
   } = useAppStore();
   const shortcuts = useKeyboardShortcutsConfig();
   const {
@@ -86,6 +102,24 @@ export function BoardView() {
     useState<Feature | null>(null);
   // State for viewing plan in read-only mode
   const [viewPlanFeature, setViewPlanFeature] = useState<Feature | null>(null);
+
+  // Worktree dialog states
+  const [showCreateWorktreeDialog, setShowCreateWorktreeDialog] =
+    useState(false);
+  const [showDeleteWorktreeDialog, setShowDeleteWorktreeDialog] =
+    useState(false);
+  const [showCommitWorktreeDialog, setShowCommitWorktreeDialog] =
+    useState(false);
+  const [showCreatePRDialog, setShowCreatePRDialog] = useState(false);
+  const [showCreateBranchDialog, setShowCreateBranchDialog] = useState(false);
+  const [selectedWorktreeForAction, setSelectedWorktreeForAction] = useState<{
+    path: string;
+    branch: string;
+    isMain: boolean;
+    hasChanges?: boolean;
+    changedFilesCount?: number;
+  } | null>(null);
+  const [worktreeRefreshKey, setWorktreeRefreshKey] = useState(0);
 
   // Follow-up state hook
   const {
@@ -194,32 +228,62 @@ export function BoardView() {
     return [...new Set(allCategories)].sort();
   }, [hookFeatures, persistedCategories]);
 
-  // Custom collision detection that prioritizes columns over cards
-  const collisionDetectionStrategy = useCallback(
-    (args: any) => {
-      // First, check if pointer is within a column
-      const pointerCollisions = pointerWithin(args);
-      const columnCollisions = pointerCollisions.filter((collision: any) =>
-        COLUMNS.some((col) => col.id === collision.id)
-      );
+  // Branch suggestions for the branch autocomplete
+  // Shows all local branches as suggestions, but users can type any new branch name
+  // When the feature is started, a worktree will be created if needed
+  const [branchSuggestions, setBranchSuggestions] = useState<string[]>([]);
 
-      // If we found a column collision, use that
-      if (columnCollisions.length > 0) {
-        return columnCollisions;
+  // Fetch branches when project changes or worktrees are created/modified
+  useEffect(() => {
+    const fetchBranches = async () => {
+      if (!currentProject) {
+        setBranchSuggestions([]);
+        return;
       }
 
-      // Otherwise, use rectangle intersection for cards
-      return rectIntersection(args);
-    },
-    []
-  );
+      try {
+        const api = getElectronAPI();
+        if (!api?.worktree?.listBranches) {
+          setBranchSuggestions([]);
+          return;
+        }
+
+        const result = await api.worktree.listBranches(currentProject.path);
+        if (result.success && result.result?.branches) {
+          const localBranches = result.result.branches
+            .filter((b) => !b.isRemote)
+            .map((b) => b.name);
+          setBranchSuggestions(localBranches);
+        }
+      } catch (error) {
+        console.error("[BoardView] Error fetching branches:", error);
+        setBranchSuggestions([]);
+      }
+    };
+
+    fetchBranches();
+  }, [currentProject, worktreeRefreshKey]);
+
+  // Custom collision detection that prioritizes columns over cards
+  const collisionDetectionStrategy = useCallback((args: any) => {
+    // First, check if pointer is within a column
+    const pointerCollisions = pointerWithin(args);
+    const columnCollisions = pointerCollisions.filter((collision: any) =>
+      COLUMNS.some((col) => col.id === collision.id)
+    );
+
+    // If we found a column collision, use that
+    if (columnCollisions.length > 0) {
+      return columnCollisions;
+    }
+
+    // Otherwise, use rectangle intersection for cards
+    return rectIntersection(args);
+  }, []);
 
   // Use persistence hook
-  const {
-    persistFeatureCreate,
-    persistFeatureUpdate,
-    persistFeatureDelete,
-  } = useBoardPersistence({ currentProject });
+  const { persistFeatureCreate, persistFeatureUpdate, persistFeatureDelete } =
+    useBoardPersistence({ currentProject });
 
   // Get in-progress features for keyboard shortcuts (needed before actions hook)
   const inProgressFeaturesForShortcuts = useMemo(() => {
@@ -228,6 +292,27 @@ export function BoardView() {
       return isRunning || f.status === "in_progress";
     });
   }, [hookFeatures, runningAutoTasks]);
+
+  // Get current worktree info (path and branch) for filtering features
+  // This needs to be before useBoardActions so we can pass currentWorktreeBranch
+  const currentWorktreeInfo = currentProject
+    ? getCurrentWorktree(currentProject.path)
+    : null;
+  const currentWorktreePath = currentWorktreeInfo?.path ?? null;
+  const currentWorktreeBranch = currentWorktreeInfo?.branch ?? null;
+  const worktreesByProject = useAppStore((s) => s.worktreesByProject);
+  const worktrees = useMemo(
+    () =>
+      currentProject
+        ? worktreesByProject[currentProject.path] ?? EMPTY_WORKTREES
+        : EMPTY_WORKTREES,
+    [currentProject, worktreesByProject]
+  );
+
+  // Get the branch for the currently selected worktree (for defaulting new features)
+  // Use the branch from currentWorktreeInfo, or fall back to main worktree's branch
+  const selectedWorktreeBranch =
+    currentWorktreeBranch || worktrees.find((w) => w.isMain)?.branch || "main";
 
   // Extract all action handlers into a hook
   const {
@@ -242,7 +327,6 @@ export function BoardView() {
     handleOpenFollowUp,
     handleSendFollowUp,
     handleCommitFeature,
-    handleRevertFeature,
     handleMergeFeature,
     handleCompleteFeature,
     handleUnarchiveFeature,
@@ -273,6 +357,9 @@ export function BoardView() {
     setShowFollowUpDialog,
     inProgressFeaturesForShortcuts,
     outputFeature,
+    projectPath: currentProject?.path || null,
+    onWorktreeCreated: () => setWorktreeRefreshKey((k) => k + 1),
+    currentWorktreeBranch,
   });
 
   // Use keyboard shortcuts hook (after actions hook)
@@ -291,6 +378,8 @@ export function BoardView() {
     runningAutoTasks,
     persistFeatureUpdate,
     handleStartImplementation,
+    projectPath: currentProject?.path || null,
+    onWorktreeCreated: () => setWorktreeRefreshKey((k) => k + 1),
   });
 
   // Use column features hook
@@ -298,6 +387,9 @@ export function BoardView() {
     features: hookFeatures,
     runningAutoTasks,
     searchQuery,
+    currentWorktreePath,
+    currentWorktreeBranch,
+    projectPath: currentProject?.path || null,
   });
 
   // Use background hook
@@ -473,6 +565,35 @@ export function BoardView() {
         isMounted={isMounted}
       />
 
+      {/* Worktree Panel */}
+      <WorktreePanel
+        refreshTrigger={worktreeRefreshKey}
+        projectPath={currentProject.path}
+        onCreateWorktree={() => setShowCreateWorktreeDialog(true)}
+        onDeleteWorktree={(worktree) => {
+          setSelectedWorktreeForAction(worktree);
+          setShowDeleteWorktreeDialog(true);
+        }}
+        onCommit={(worktree) => {
+          setSelectedWorktreeForAction(worktree);
+          setShowCommitWorktreeDialog(true);
+        }}
+        onCreatePR={(worktree) => {
+          setSelectedWorktreeForAction(worktree);
+          setShowCreatePRDialog(true);
+        }}
+        onCreateBranch={(worktree) => {
+          setSelectedWorktreeForAction(worktree);
+          setShowCreateBranchDialog(true);
+        }}
+        runningFeatureIds={runningAutoTasks}
+        features={hookFeatures.map((f) => ({
+          id: f.id,
+          worktreePath: f.worktreePath,
+          branchName: f.branchName,
+        }))}
+      />
+
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Search Bar Row */}
@@ -515,8 +636,6 @@ export function BoardView() {
           onMoveBackToInProgress={handleMoveBackToInProgress}
           onFollowUp={handleOpenFollowUp}
           onCommit={handleCommitFeature}
-          onRevert={handleRevertFeature}
-          onMerge={handleMergeFeature}
           onComplete={handleCompleteFeature}
           onImplement={handleStartImplementation}
           onViewPlan={(feature) => setViewPlanFeature(feature)}
@@ -564,7 +683,9 @@ export function BoardView() {
         onOpenChange={setShowAddDialog}
         onAdd={handleAddFeature}
         categorySuggestions={categorySuggestions}
+        branchSuggestions={branchSuggestions}
         defaultSkipTests={defaultSkipTests}
+        defaultBranch={selectedWorktreeBranch}
         isMaximized={isMaximized}
         showProfilesOnly={showProfilesOnly}
         aiProfiles={aiProfiles}
@@ -576,6 +697,7 @@ export function BoardView() {
         onClose={() => setEditingFeature(null)}
         onUpdate={handleUpdateFeature}
         categorySuggestions={categorySuggestions}
+        branchSuggestions={branchSuggestions}
         isMaximized={isMaximized}
         showProfilesOnly={showProfilesOnly}
         aiProfiles={aiProfiles}
@@ -656,6 +778,101 @@ export function BoardView() {
           viewOnly={true}
         />
       )}
+
+      {/* Create Worktree Dialog */}
+      <CreateWorktreeDialog
+        open={showCreateWorktreeDialog}
+        onOpenChange={setShowCreateWorktreeDialog}
+        projectPath={currentProject.path}
+        onCreated={(newWorktree) => {
+          // Add the new worktree to the store immediately to avoid race condition
+          // when deriving currentWorktreeBranch for filtering
+          const currentWorktrees = getWorktrees(currentProject.path);
+          const newWorktreeInfo = {
+            path: newWorktree.path,
+            branch: newWorktree.branch,
+            isMain: false,
+            isCurrent: false,
+            hasWorktree: true,
+          };
+          setWorktrees(currentProject.path, [
+            ...currentWorktrees,
+            newWorktreeInfo,
+          ]);
+
+          // Now set the current worktree with both path and branch
+          setCurrentWorktree(
+            currentProject.path,
+            newWorktree.path,
+            newWorktree.branch
+          );
+
+          // Trigger refresh to get full worktree details (hasChanges, etc.)
+          setWorktreeRefreshKey((k) => k + 1);
+        }}
+      />
+
+      {/* Delete Worktree Dialog */}
+      <DeleteWorktreeDialog
+        open={showDeleteWorktreeDialog}
+        onOpenChange={setShowDeleteWorktreeDialog}
+        projectPath={currentProject.path}
+        worktree={selectedWorktreeForAction}
+        onDeleted={(deletedWorktree, _deletedBranch) => {
+          // Reset features that were assigned to the deleted worktree
+          hookFeatures.forEach((feature) => {
+            const matchesByPath =
+              feature.worktreePath &&
+              pathsEqual(feature.worktreePath, deletedWorktree.path);
+            const matchesByBranch =
+              feature.branchName === deletedWorktree.branch;
+
+            if (matchesByPath || matchesByBranch) {
+              // Reset the feature's worktree assignment
+              persistFeatureUpdate(feature.id, {
+                branchName: null as unknown as string | undefined,
+                worktreePath: null as unknown as string | undefined,
+              });
+            }
+          });
+
+          setWorktreeRefreshKey((k) => k + 1);
+          setSelectedWorktreeForAction(null);
+        }}
+      />
+
+      {/* Commit Worktree Dialog */}
+      <CommitWorktreeDialog
+        open={showCommitWorktreeDialog}
+        onOpenChange={setShowCommitWorktreeDialog}
+        worktree={selectedWorktreeForAction}
+        onCommitted={() => {
+          setWorktreeRefreshKey((k) => k + 1);
+          setSelectedWorktreeForAction(null);
+        }}
+      />
+
+      {/* Create PR Dialog */}
+      <CreatePRDialog
+        open={showCreatePRDialog}
+        onOpenChange={setShowCreatePRDialog}
+        worktree={selectedWorktreeForAction}
+        onCreated={() => {
+          setWorktreeRefreshKey((k) => k + 1);
+          setSelectedWorktreeForAction(null);
+        }}
+      />
+
+      {/* Create Branch Dialog */}
+      <CreateBranchDialog
+        open={showCreateBranchDialog}
+        onOpenChange={setShowCreateBranchDialog}
+        worktree={selectedWorktreeForAction}
+        onCreated={() => {
+          setWorktreeRefreshKey((k) => k + 1);
+          setSelectedWorktreeForAction(null);
+        }}
+      />
     </div>
   );
 }

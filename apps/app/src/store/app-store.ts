@@ -30,7 +30,10 @@ export type ThemeMode =
   | "catppuccin"
   | "onedark"
   | "synthwave"
-  | "red";
+  | "red"
+  | "cream"
+  | "sunset"
+  | "gray";
 
 export type KanbanCardDetailLevel = "minimal" | "standard" | "detailed";
 
@@ -423,9 +426,24 @@ export interface AppState {
 
   // Feature Default Settings
   defaultSkipTests: boolean; // Default value for skip tests when creating new features
+  enableDependencyBlocking: boolean; // When true, show blocked badges and warnings for features with incomplete dependencies (default: true)
 
   // Worktree Settings
   useWorktrees: boolean; // Whether to use git worktree isolation for features (default: false)
+
+  // User-managed Worktrees (per-project)
+  // projectPath -> { path: worktreePath or null for main, branch: branch name }
+  currentWorktreeByProject: Record<string, { path: string | null; branch: string }>;
+  worktreesByProject: Record<
+    string,
+    Array<{
+      path: string;
+      branch: string;
+      isMain: boolean;
+      hasChanges?: boolean;
+      changedFilesCount?: number;
+    }>
+  >;
 
   // AI Profiles
   aiProfiles: AIProfile[];
@@ -607,9 +625,29 @@ export interface AppActions {
 
   // Feature Default Settings actions
   setDefaultSkipTests: (skip: boolean) => void;
+  setEnableDependencyBlocking: (enabled: boolean) => void;
 
   // Worktree Settings actions
   setUseWorktrees: (enabled: boolean) => void;
+  setCurrentWorktree: (projectPath: string, worktreePath: string | null, branch: string) => void;
+  setWorktrees: (
+    projectPath: string,
+    worktrees: Array<{
+      path: string;
+      branch: string;
+      isMain: boolean;
+      hasChanges?: boolean;
+      changedFilesCount?: number;
+    }>
+  ) => void;
+  getCurrentWorktree: (projectPath: string) => { path: string | null; branch: string } | null;
+  getWorktrees: (projectPath: string) => Array<{
+    path: string;
+    branch: string;
+    isMain: boolean;
+    hasChanges?: boolean;
+    changedFilesCount?: number;
+  }>;
 
   // Profile Display Settings actions
   setShowProfilesOnly: (enabled: boolean) => void;
@@ -769,7 +807,10 @@ const initialState: AppState = {
   maxConcurrency: 3, // Default to 3 concurrent agents
   kanbanCardDetailLevel: "standard", // Default to standard detail level
   defaultSkipTests: true, // Default to manual verification (tests disabled)
+  enableDependencyBlocking: true, // Default to enabled (show dependency blocking UI)
   useWorktrees: false, // Default to disabled (worktree feature is experimental)
+  currentWorktreeByProject: {},
+  worktreesByProject: {},
   showProfilesOnly: false, // Default to showing all options (not profiles only)
   keyboardShortcuts: DEFAULT_KEYBOARD_SHORTCUTS, // Default keyboard shortcuts
   muteDoneSound: false, // Default to sound enabled (not muted)
@@ -1361,9 +1402,38 @@ export const useAppStore = create<AppState & AppActions>()(
 
       // Feature Default Settings actions
       setDefaultSkipTests: (skip) => set({ defaultSkipTests: skip }),
+      setEnableDependencyBlocking: (enabled) => set({ enableDependencyBlocking: enabled }),
 
       // Worktree Settings actions
       setUseWorktrees: (enabled) => set({ useWorktrees: enabled }),
+
+      setCurrentWorktree: (projectPath, worktreePath, branch) => {
+        const current = get().currentWorktreeByProject;
+        set({
+          currentWorktreeByProject: {
+            ...current,
+            [projectPath]: { path: worktreePath, branch },
+          },
+        });
+      },
+
+      setWorktrees: (projectPath, worktrees) => {
+        const current = get().worktreesByProject;
+        set({
+          worktreesByProject: {
+            ...current,
+            [projectPath]: worktrees,
+          },
+        });
+      },
+
+      getCurrentWorktree: (projectPath) => {
+        return get().currentWorktreeByProject[projectPath] ?? null;
+      },
+
+      getWorktrees: (projectPath) => {
+        return get().worktreesByProject[projectPath] ?? [];
+      },
 
       // Profile Display Settings actions
       setShowProfilesOnly: (enabled) => set({ showProfilesOnly: enabled }),
@@ -2230,7 +2300,10 @@ export const useAppStore = create<AppState & AppActions>()(
         maxConcurrency: state.maxConcurrency,
         autoModeByProject: state.autoModeByProject,
         defaultSkipTests: state.defaultSkipTests,
+        enableDependencyBlocking: state.enableDependencyBlocking,
         useWorktrees: state.useWorktrees,
+        currentWorktreeByProject: state.currentWorktreeByProject,
+        worktreesByProject: state.worktreesByProject,
         showProfilesOnly: state.showProfilesOnly,
         keyboardShortcuts: state.keyboardShortcuts,
         muteDoneSound: state.muteDoneSound,

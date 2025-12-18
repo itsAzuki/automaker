@@ -45,8 +45,6 @@ interface KanbanBoardProps {
   onMoveBackToInProgress: (feature: Feature) => void;
   onFollowUp: (feature: Feature) => void;
   onCommit: (feature: Feature) => void;
-  onRevert: (feature: Feature) => void;
-  onMerge: (feature: Feature) => void;
   onComplete: (feature: Feature) => void;
   onImplement: (feature: Feature) => void;
   onViewPlan: (feature: Feature) => void;
@@ -79,8 +77,6 @@ export function KanbanBoard({
   onMoveBackToInProgress,
   onFollowUp,
   onCommit,
-  onRevert,
-  onMerge,
   onComplete,
   onImplement,
   onViewPlan,
@@ -195,8 +191,6 @@ export function KanbanBoard({
                         }
                         onFollowUp={() => onFollowUp(feature)}
                         onCommit={() => onCommit(feature)}
-                        onRevert={() => onRevert(feature)}
-                        onMerge={() => onMerge(feature)}
                         onComplete={() => onComplete(feature)}
                         onImplement={() => onImplement(feature)}
                         onViewPlan={() => onViewPlan(feature)}

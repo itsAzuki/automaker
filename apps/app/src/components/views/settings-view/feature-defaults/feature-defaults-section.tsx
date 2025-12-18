@@ -1,7 +1,7 @@
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
-  FlaskConical, Settings2, TestTube, GitBranch,
+  FlaskConical, Settings2, TestTube, GitBranch, AlertCircle,
   Zap, ClipboardList, FileText, ScrollText, ShieldCheck
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -18,11 +18,13 @@ type PlanningMode = 'skip' | 'lite' | 'spec' | 'full';
 interface FeatureDefaultsSectionProps {
   showProfilesOnly: boolean;
   defaultSkipTests: boolean;
+  enableDependencyBlocking: boolean;
   useWorktrees: boolean;
   defaultPlanningMode: PlanningMode;
   defaultRequirePlanApproval: boolean;
   onShowProfilesOnlyChange: (value: boolean) => void;
   onDefaultSkipTestsChange: (value: boolean) => void;
+  onEnableDependencyBlockingChange: (value: boolean) => void;
   onUseWorktreesChange: (value: boolean) => void;
   onDefaultPlanningModeChange: (value: PlanningMode) => void;
   onDefaultRequirePlanApprovalChange: (value: boolean) => void;
@@ -31,11 +33,13 @@ interface FeatureDefaultsSectionProps {
 export function FeatureDefaultsSection({
   showProfilesOnly,
   defaultSkipTests,
+  enableDependencyBlocking,
   useWorktrees,
   defaultPlanningMode,
   defaultRequirePlanApproval,
   onShowProfilesOnlyChange,
   onDefaultSkipTestsChange,
+  onEnableDependencyBlockingChange,
   onUseWorktreesChange,
   onDefaultPlanningModeChange,
   onDefaultRequirePlanApprovalChange,
@@ -224,22 +228,51 @@ export function FeatureDefaultsSection({
         {/* Separator */}
         <div className="border-t border-border/30" />
 
+        {/* Dependency Blocking Setting */}
+        <div className="group flex items-start space-x-3 p-3 rounded-xl hover:bg-accent/30 transition-colors duration-200 -mx-3">
+          <Checkbox
+            id="enable-dependency-blocking"
+            checked={enableDependencyBlocking}
+            onCheckedChange={(checked) =>
+              onEnableDependencyBlockingChange(checked === true)
+            }
+            className="mt-1"
+            data-testid="enable-dependency-blocking-checkbox"
+          />
+          <div className="space-y-1.5">
+            <Label
+              htmlFor="enable-dependency-blocking"
+              className="text-foreground cursor-pointer font-medium flex items-center gap-2"
+            >
+              <AlertCircle className="w-4 h-4 text-brand-500" />
+              Enable Dependency Blocking
+            </Label>
+            <p className="text-xs text-muted-foreground/80 leading-relaxed">
+              When enabled, features with incomplete dependencies will show blocked badges
+              and warnings. Auto mode and backlog ordering always respect dependencies
+              regardless of this setting.
+            </p>
+          </div>
+        </div>
+
+        {/* Separator */}
+        <div className="border-t border-border/30" />
+
         {/* Worktree Isolation Setting */}
-        <div className="group flex items-start space-x-3 p-3 rounded-xl transition-colors duration-200 -mx-3 opacity-60">
+        <div className="group flex items-start space-x-3 p-3 rounded-xl hover:bg-accent/30 transition-colors duration-200 -mx-3">
           <Checkbox
             id="use-worktrees"
             checked={useWorktrees}
             onCheckedChange={(checked) =>
               onUseWorktreesChange(checked === true)
             }
-            disabled={true}
             className="mt-1"
             data-testid="use-worktrees-checkbox"
           />
           <div className="space-y-1.5">
             <Label
               htmlFor="use-worktrees"
-              className="text-foreground font-medium flex items-center gap-2"
+              className="text-foreground cursor-pointer font-medium flex items-center gap-2"
             >
               <GitBranch className="w-4 h-4 text-brand-500" />
               Enable Git Worktree Isolation
@@ -250,9 +283,6 @@ export function FeatureDefaultsSection({
             <p className="text-xs text-muted-foreground/80 leading-relaxed">
               Creates isolated git branches for each feature. When disabled,
               agents work directly in the main project directory.
-            </p>
-            <p className="text-xs text-orange-500/80 leading-relaxed font-medium">
-              ⚠️ This feature is still under development and temporarily disabled.
             </p>
           </div>
         </div>

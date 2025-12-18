@@ -133,10 +133,10 @@ function HomeContent() {
   // Apply theme class to document (uses effective theme - preview, project-specific, or global)
   useEffect(() => {
     const root = document.documentElement;
-    root.classList.remove(
+    const themeClasses = [
       "dark",
-      "retro",
       "light",
+      "retro",
       "dracula",
       "nord",
       "monokai",
@@ -146,43 +146,22 @@ function HomeContent() {
       "catppuccin",
       "onedark",
       "synthwave",
-      "red"
-    );
+      "red",
+      "cream",
+      "sunset",
+      "gray",
+    ];
 
-    if (effectiveTheme === "dark") {
-      root.classList.add("dark");
-    } else if (effectiveTheme === "retro") {
-      root.classList.add("retro");
-    } else if (effectiveTheme === "dracula") {
-      root.classList.add("dracula");
-    } else if (effectiveTheme === "nord") {
-      root.classList.add("nord");
-    } else if (effectiveTheme === "monokai") {
-      root.classList.add("monokai");
-    } else if (effectiveTheme === "tokyonight") {
-      root.classList.add("tokyonight");
-    } else if (effectiveTheme === "solarized") {
-      root.classList.add("solarized");
-    } else if (effectiveTheme === "gruvbox") {
-      root.classList.add("gruvbox");
-    } else if (effectiveTheme === "catppuccin") {
-      root.classList.add("catppuccin");
-    } else if (effectiveTheme === "onedark") {
-      root.classList.add("onedark");
-    } else if (effectiveTheme === "synthwave") {
-      root.classList.add("synthwave");
-    } else if (effectiveTheme === "red") {
-      root.classList.add("red");
-    } else if (effectiveTheme === "light") {
-      root.classList.add("light");
+    // Remove all theme classes
+    root.classList.remove(...themeClasses);
+
+    // Apply the effective theme
+    if (themeClasses.includes(effectiveTheme)) {
+      root.classList.add(effectiveTheme);
     } else if (effectiveTheme === "system") {
-      // System theme
+      // System theme - detect OS preference
       const isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-      if (isDark) {
-        root.classList.add("dark");
-      } else {
-        root.classList.add("light");
-      }
+      root.classList.add(isDark ? "dark" : "light");
     }
   }, [effectiveTheme, previewTheme, currentProject, theme]);
 
