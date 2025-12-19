@@ -16,7 +16,7 @@ describe("security.ts", () => {
       process.env.DATA_DIR = "";
 
       const { initAllowedPaths, getAllowedPaths } = await import(
-        "@/lib/security.js"
+        "@automaker/platform"
       );
       initAllowedPaths();
 
@@ -31,7 +31,7 @@ describe("security.ts", () => {
       process.env.DATA_DIR = "";
 
       const { initAllowedPaths, getAllowedPaths } = await import(
-        "@/lib/security.js"
+        "@automaker/platform"
       );
       initAllowedPaths();
 
@@ -45,7 +45,7 @@ describe("security.ts", () => {
       process.env.DATA_DIR = "/data/dir";
 
       const { initAllowedPaths, getAllowedPaths } = await import(
-        "@/lib/security.js"
+        "@automaker/platform"
       );
       initAllowedPaths();
 
@@ -58,7 +58,7 @@ describe("security.ts", () => {
       process.env.DATA_DIR = "/data";
 
       const { initAllowedPaths, getAllowedPaths } = await import(
-        "@/lib/security.js"
+        "@automaker/platform"
       );
       initAllowedPaths();
 
@@ -72,7 +72,7 @@ describe("security.ts", () => {
       process.env.DATA_DIR = "";
 
       const { initAllowedPaths, getAllowedPaths } = await import(
-        "@/lib/security.js"
+        "@automaker/platform"
       );
       initAllowedPaths();
 
@@ -87,7 +87,7 @@ describe("security.ts", () => {
       process.env.DATA_DIR = "";
 
       const { initAllowedPaths, addAllowedPath, getAllowedPaths } =
-        await import("@/lib/security.js");
+        await import("@automaker/platform");
       initAllowedPaths();
 
       addAllowedPath("/new/path");
@@ -101,7 +101,7 @@ describe("security.ts", () => {
       process.env.DATA_DIR = "";
 
       const { initAllowedPaths, addAllowedPath, getAllowedPaths } =
-        await import("@/lib/security.js");
+        await import("@automaker/platform");
       initAllowedPaths();
 
       addAllowedPath("./relative/path");
@@ -118,7 +118,7 @@ describe("security.ts", () => {
       process.env.DATA_DIR = "";
 
       const { initAllowedPaths, isPathAllowed } = await import(
-        "@/lib/security.js"
+        "@automaker/platform"
       );
       initAllowedPaths();
 
@@ -137,7 +137,7 @@ describe("security.ts", () => {
       process.env.DATA_DIR = "";
 
       const { initAllowedPaths, validatePath } = await import(
-        "@/lib/security.js"
+        "@automaker/platform"
       );
       initAllowedPaths();
 
@@ -150,7 +150,7 @@ describe("security.ts", () => {
       process.env.DATA_DIR = "";
 
       const { initAllowedPaths, validatePath } = await import(
-        "@/lib/security.js"
+        "@automaker/platform"
       );
       initAllowedPaths();
 
@@ -167,7 +167,7 @@ describe("security.ts", () => {
       process.env.DATA_DIR = "";
 
       const { initAllowedPaths, validatePath } = await import(
-        "@/lib/security.js"
+        "@automaker/platform"
       );
       initAllowedPaths();
 
@@ -182,7 +182,7 @@ describe("security.ts", () => {
       process.env.DATA_DIR = "/data";
 
       const { initAllowedPaths, getAllowedPaths } = await import(
-        "@/lib/security.js"
+        "@automaker/platform"
       );
       initAllowedPaths();
 
@@ -196,7 +196,7 @@ describe("security.ts", () => {
       process.env.DATA_DIR = "";
 
       const { initAllowedPaths, getAllowedPaths } = await import(
-        "@/lib/security.js"
+        "@automaker/platform"
       );
       initAllowedPaths();
 
