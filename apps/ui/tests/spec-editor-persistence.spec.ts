@@ -77,8 +77,28 @@ test.describe("Spec Editor Persistence", () => {
     const specEditorAfterReload = await getByTestId(page, "spec-editor");
     await specEditorAfterReload.locator(".cm-content").waitFor({ state: "visible", timeout: 10000 });
 
-    // Small delay to ensure editor content is loaded
-    await page.waitForTimeout(500);
+    // Wait for the spec to finish loading (check that loading state is gone)
+    await page.waitForFunction(
+      () => {
+        const loadingView = document.querySelector('[data-testid="spec-view-loading"]');
+        return loadingView === null;
+      },
+      { timeout: 10000 }
+    );
+
+    // Wait for CodeMirror content to update with the loaded spec
+    // CodeMirror might need a moment to update its DOM after the value prop changes
+    await page.waitForFunction(
+      (expectedContent) => {
+        const contentElement = document.querySelector('[data-testid="spec-editor"] .cm-content');
+        if (!contentElement) return false;
+        const text = (contentElement.textContent || "").trim();
+        // Wait until content matches what we saved
+        return text === expectedContent;
+      },
+      "hello world",
+      { timeout: 10000 }
+    );
 
     // Step 11: Verify the content was persisted
     const persistedContent = await getEditorContent(page);

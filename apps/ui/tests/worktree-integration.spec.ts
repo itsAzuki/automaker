@@ -874,27 +874,28 @@ test.describe("Worktree Integration Tests", () => {
     await confirmAddFeature(page);
 
     // Wait for feature to be saved and worktree to be created
+    // Also wait for the worktree to appear in the UI and be auto-selected
     await page.waitForTimeout(2000);
 
-    // Verify the new worktree is auto-selected (highlighted/active in the worktree panel)
-    // The worktree button should now be in a selected state (indicated by data-selected or similar class)
-    const worktreeButton = page.getByRole("button", {
-      name: new RegExp(branchName.replace("/", "\\/"), "i"),
-    });
-    await expect(worktreeButton).toBeVisible({ timeout: 5000 });
+    // Wait for the worktree button to appear in the UI
+    // Worktree buttons are actual <button> elements (not divs with role="button" like kanban cards)
+    // and have a title attribute like "Click to switch to this worktree's branch"
+    const worktreeButton = page
+      .locator('button[title*="worktree"], button[title*="branch"]')
+      .filter({ hasText: new RegExp(branchName.replace("/", "\\/"), "i") })
+      .first();
+    await expect(worktreeButton).toBeVisible({ timeout: 10000 });
 
-    // Check that the worktree button has the selected state (using the aria-pressed attribute or data-state)
-    // The selected worktree should have a different visual state
-    await expect(worktreeButton).toHaveAttribute("data-state", "active", { timeout: 5000 }).catch(async () => {
-      // Fallback: check if the button has a specific class that indicates selection
-      // or verify the feature is visible, which would only happen if the worktree is selected
-      const featureText = page.getByText("Feature with auto-select worktree");
-      await expect(featureText).toBeVisible({ timeout: 5000 });
-    });
-
-    // Verify the feature is visible in the backlog (which means the worktree is selected)
+    // Verify the worktree is auto-selected by checking if the feature is visible
+    // Features are filtered by the selected worktree, so if the feature is visible,
+    // it means the worktree was auto-selected after creation
     const featureText = page.getByText("Feature with auto-select worktree");
-    await expect(featureText).toBeVisible({ timeout: 5000 });
+    await expect(featureText).toBeVisible({ timeout: 10000 });
+
+    // Additional verification: Check that the button has the selected styling
+    // Selected worktree buttons have variant="default" which applies bg-primary class
+    // We verify this by checking the button has the primary background styling
+    await expect(worktreeButton).toHaveClass(/bg-primary/, { timeout: 5000 });
   });
 
   test("should reset feature branch and worktree when worktree is deleted", async ({
