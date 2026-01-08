@@ -52,7 +52,6 @@ test.describe('Worktree Integration', () => {
     await authenticateForTests(page);
     await page.goto('/');
     await page.waitForLoadState('load');
-    await handleLoginScreenIfPresent(page);
     await waitForNetworkIdle(page);
     await waitForBoardView(page);
 
