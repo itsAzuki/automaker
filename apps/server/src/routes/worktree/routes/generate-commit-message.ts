@@ -8,6 +8,8 @@
 import type { Request, Response } from 'express';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import { existsSync } from 'fs';
+import { join } from 'path';
 import { query } from '@anthropic-ai/claude-agent-sdk';
 import { createLogger } from '@automaker/utils';
 import { DEFAULT_PHASE_MODELS, isCursorModel, stripProviderPrefix } from '@automaker/types';
@@ -82,6 +84,27 @@ export function createGenerateCommitMessageHandler(
         const response: GenerateCommitMessageErrorResponse = {
           success: false,
           error: 'worktreePath is required and must be a string',
+        };
+        res.status(400).json(response);
+        return;
+      }
+
+      // Validate that the directory exists
+      if (!existsSync(worktreePath)) {
+        const response: GenerateCommitMessageErrorResponse = {
+          success: false,
+          error: 'worktreePath does not exist',
+        };
+        res.status(400).json(response);
+        return;
+      }
+
+      // Validate that it's a git repository (check for .git folder or file for worktrees)
+      const gitPath = join(worktreePath, '.git');
+      if (!existsSync(gitPath)) {
+        const response: GenerateCommitMessageErrorResponse = {
+          success: false,
+          error: 'worktreePath is not a git repository',
         };
         res.status(400).json(response);
         return;

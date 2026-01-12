@@ -82,10 +82,13 @@ export function ClaudeUsageSection() {
 
   useEffect(() => {
     // Initial fetch if authenticated and stale
-    if (canFetchUsage && isStale) {
+    // Compute staleness inside effect to avoid re-running when Date.now() changes
+    const isDataStale =
+      !claudeUsageLastUpdated || Date.now() - claudeUsageLastUpdated > STALE_THRESHOLD_MS;
+    if (canFetchUsage && isDataStale) {
       void fetchUsage();
     }
-  }, [fetchUsage, canFetchUsage, isStale]);
+  }, [fetchUsage, canFetchUsage, claudeUsageLastUpdated]);
 
   useEffect(() => {
     if (!canFetchUsage) return undefined;

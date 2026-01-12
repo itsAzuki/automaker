@@ -175,28 +175,29 @@ export function SettingsNavigation({
 }: SettingsNavigationProps) {
   // On mobile, only show when isOpen is true
   // On desktop (lg+), always show regardless of isOpen
-  const shouldShow = isOpen;
-
-  if (!shouldShow) {
-    return null;
-  }
+  // The desktop visibility is handled by CSS, but we need to render on mobile only when open
 
   return (
     <>
-      {/* Mobile backdrop overlay */}
-      <div
-        className="fixed inset-0 bg-black/50 z-20 lg:hidden"
-        onClick={onClose}
-        data-testid="settings-nav-backdrop"
-      />
+      {/* Mobile backdrop overlay - only shown when isOpen is true on mobile */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-20 lg:hidden"
+          onClick={onClose}
+          data-testid="settings-nav-backdrop"
+        />
+      )}
 
       {/* Navigation sidebar */}
       <nav
         className={cn(
-          // Mobile: fixed position overlay
+          // Mobile: fixed position overlay with slide transition
           'fixed inset-y-0 left-0 w-72 z-30',
-          // Desktop: relative position in layout
-          'lg:relative lg:w-64 lg:z-auto',
+          'transition-transform duration-200 ease-out',
+          // Hide on mobile when closed, show when open
+          isOpen ? 'translate-x-0' : '-translate-x-full',
+          // Desktop: relative position in layout, always visible
+          'lg:relative lg:w-64 lg:z-auto lg:translate-x-0',
           'shrink-0 overflow-y-auto',
           'border-r border-border/50',
           'bg-gradient-to-b from-card/95 via-card/90 to-card/85 backdrop-blur-xl',

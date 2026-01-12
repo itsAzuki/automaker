@@ -11,42 +11,6 @@ import { RowActions, type RowActionHandlers } from './row-actions';
 import { getColumnWidth, getColumnAlign } from './list-header';
 
 /**
- * Format a date string for display in the table
- */
-function formatRelativeDate(dateString: string | undefined): string {
-  if (!dateString) return '-';
-
-  const date = new Date(dateString);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-  if (diffDays === 0) {
-    // Today - show time
-    return date.toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-    });
-  }
-
-  if (diffDays === 1) {
-    return 'Yesterday';
-  }
-
-  if (diffDays < 7) {
-    return `${diffDays} days ago`;
-  }
-
-  // Older - show date
-  return date.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
-  });
-}
-
-/**
  * Get the priority display configuration
  */
 function getPriorityDisplay(priority: number | undefined): {

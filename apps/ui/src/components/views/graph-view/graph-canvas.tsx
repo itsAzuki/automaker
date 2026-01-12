@@ -258,10 +258,19 @@ function GraphCanvasInner({
     let previousWidth = window.innerWidth;
     let previousHeight = window.innerHeight;
 
+    // Track timeout IDs for cleanup
+    let orientationTimeoutId: ReturnType<typeof setTimeout> | null = null;
+    let resizeTimeoutId: ReturnType<typeof setTimeout> | null = null;
+
     const handleOrientationChange = () => {
+      // Clear any pending timeout
+      if (orientationTimeoutId) {
+        clearTimeout(orientationTimeoutId);
+      }
       // Small delay to allow the browser to complete the orientation change
-      setTimeout(() => {
+      orientationTimeoutId = setTimeout(() => {
         fitView({ padding: 0.2, duration: 300 });
+        orientationTimeoutId = null;
       }, 100);
     };
 
@@ -279,9 +288,14 @@ function GraphCanvasInner({
       const isOrientationChange = widthDiff < 100 && heightDiff < 100;
 
       if (isOrientationChange) {
+        // Clear any pending timeout
+        if (resizeTimeoutId) {
+          clearTimeout(resizeTimeoutId);
+        }
         // Delay fitView to allow browser to complete the layout
-        setTimeout(() => {
+        resizeTimeoutId = setTimeout(() => {
           fitView({ padding: 0.2, duration: 300 });
+          resizeTimeoutId = null;
         }, 150);
       }
 
@@ -297,6 +311,13 @@ function GraphCanvasInner({
     return () => {
       window.removeEventListener('orientationchange', handleOrientationChange);
       window.removeEventListener('resize', handleResize);
+      // Clear any pending timeouts
+      if (orientationTimeoutId) {
+        clearTimeout(orientationTimeoutId);
+      }
+      if (resizeTimeoutId) {
+        clearTimeout(resizeTimeoutId);
+      }
     };
   }, [fitView]);
 

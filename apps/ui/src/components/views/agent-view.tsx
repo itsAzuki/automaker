@@ -20,14 +20,16 @@ export function AgentView() {
   const { currentProject } = useAppStore();
   const [input, setInput] = useState('');
   const [currentTool, setCurrentTool] = useState<string | null>(null);
-  // Initialize session manager state based on screen size (hidden on mobile)
-  const [showSessionManager, setShowSessionManager] = useState(() => {
+  // Initialize session manager state - starts as true to match SSR
+  // Then updates on mount based on actual screen size to prevent hydration mismatch
+  const [showSessionManager, setShowSessionManager] = useState(true);
+
+  // Update session manager visibility based on screen size after mount
+  useEffect(() => {
     // Check if we're on a mobile screen (< lg breakpoint = 1024px)
-    if (typeof window !== 'undefined') {
-      return window.innerWidth >= 1024;
-    }
-    return true; // Default to showing on SSR
-  });
+    const isDesktop = window.innerWidth >= 1024;
+    setShowSessionManager(isDesktop);
+  }, []);
   const [modelSelection, setModelSelection] = useState<PhaseModelEntry>({ model: 'sonnet' });
 
   // Input ref for auto-focus
