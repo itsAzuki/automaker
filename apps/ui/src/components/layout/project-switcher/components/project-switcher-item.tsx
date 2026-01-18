@@ -1,6 +1,6 @@
 import { Folder, LucideIcon } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, sanitizeForTestId } from '@/lib/utils';
 import { getAuthenticatedImageUrl } from '@/lib/api-fetch';
 import type { Project } from '@/lib/electron';
 
@@ -37,22 +37,9 @@ export function ProjectSwitcherItem({
   const IconComponent = getIconComponent();
   const hasCustomIcon = !!project.customIconPath;
 
-  // Create a sanitized project name for test ID:
-  // - Convert to lowercase
-  // - Replace spaces with hyphens
-  // - Remove all non-alphanumeric characters except hyphens
-  // - Collapse multiple hyphens into single hyphen
-  // - Trim leading/trailing hyphens
-  const sanitizedName = project.name
-    .toLowerCase()
-    .replace(/\s+/g, '-')
-    .replace(/[^a-z0-9-]/g, '')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '');
-
   // Combine project.id with sanitized name for uniqueness and readability
   // Format: project-switcher-{id}-{sanitizedName}
-  const testId = `project-switcher-${project.id}-${sanitizedName}`;
+  const testId = `project-switcher-${project.id}-${sanitizeForTestId(project.name)}`;
 
   return (
     <button
