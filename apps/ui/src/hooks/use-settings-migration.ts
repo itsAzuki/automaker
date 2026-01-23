@@ -698,6 +698,7 @@ export function hydrateStoreFromSettings(settings: GlobalSettings): void {
     fontFamilySans: settings.fontFamilySans ?? null,
     fontFamilyMono: settings.fontFamilyMono ?? null,
     sidebarOpen: settings.sidebarOpen ?? true,
+    sidebarStyle: settings.sidebarStyle ?? 'unified',
     chatHistoryOpen: settings.chatHistoryOpen ?? false,
     maxConcurrency: settings.maxConcurrency ?? DEFAULT_MAX_CONCURRENCY,
     autoModeByWorktree: restoredAutoModeByWorktree,

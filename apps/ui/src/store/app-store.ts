@@ -36,6 +36,7 @@ import type {
   EventHook,
   ClaudeApiProfile,
   ClaudeCompatibleProvider,
+  SidebarStyle,
 } from '@automaker/types';
 import {
   getAllCursorModelIds,
@@ -610,6 +611,7 @@ export interface AppState {
   // View state
   currentView: ViewMode;
   sidebarOpen: boolean;
+  sidebarStyle: SidebarStyle; // 'unified' (modern) or 'discord' (classic two-sidebar layout)
   mobileSidebarHidden: boolean; // Completely hides sidebar on mobile
 
   // Agent Session state (per-project, keyed by project path)
@@ -1046,6 +1048,7 @@ export interface AppActions {
   setCurrentView: (view: ViewMode) => void;
   toggleSidebar: () => void;
   setSidebarOpen: (open: boolean) => void;
+  setSidebarStyle: (style: SidebarStyle) => void;
   toggleMobileSidebarHidden: () => void;
   setMobileSidebarHidden: (hidden: boolean) => void;
 
@@ -1471,6 +1474,7 @@ const initialState: AppState = {
   projectHistoryIndex: -1,
   currentView: 'welcome',
   sidebarOpen: true,
+  sidebarStyle: 'unified', // Default to modern unified sidebar
   mobileSidebarHidden: false, // Sidebar visible by default on mobile
   lastSelectedSessionByProject: {},
   theme: getStoredTheme() || 'dark', // Use localStorage theme as initial value, fallback to 'dark'
@@ -1929,6 +1933,7 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
   setCurrentView: (view) => set({ currentView: view }),
   toggleSidebar: () => set({ sidebarOpen: !get().sidebarOpen }),
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
+  setSidebarStyle: (style) => set({ sidebarStyle: style }),
   toggleMobileSidebarHidden: () => set({ mobileSidebarHidden: !get().mobileSidebarHidden }),
   setMobileSidebarHidden: (hidden) => set({ mobileSidebarHidden: hidden }),
 

@@ -53,6 +53,7 @@ const SETTINGS_FIELDS_TO_SYNC = [
   'terminalFontFamily', // Maps to terminalState.fontFamily
   'openTerminalMode', // Maps to terminalState.openTerminalMode
   'sidebarOpen',
+  'sidebarStyle',
   'chatHistoryOpen',
   'maxConcurrency',
   'autoModeByWorktree', // Per-worktree auto mode settings (only maxConcurrency is persisted)
@@ -697,6 +698,7 @@ export async function refreshSettingsFromServer(): Promise<boolean> {
     useAppStore.setState({
       theme: serverSettings.theme as unknown as ThemeMode,
       sidebarOpen: serverSettings.sidebarOpen,
+      sidebarStyle: serverSettings.sidebarStyle ?? 'unified',
       chatHistoryOpen: serverSettings.chatHistoryOpen,
       maxConcurrency: serverSettings.maxConcurrency,
       autoModeByWorktree: restoredAutoModeByWorktree,
