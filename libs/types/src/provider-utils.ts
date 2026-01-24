@@ -7,7 +7,7 @@
  */
 
 import type { ModelProvider } from './settings.js';
-import { CURSOR_MODEL_MAP, LEGACY_CURSOR_MODEL_MAP } from './cursor-models.js';
+import { LEGACY_CURSOR_MODEL_MAP } from './cursor-models.js';
 import { CLAUDE_MODEL_MAP, CODEX_MODEL_MAP } from './model.js';
 import { OPENCODE_MODEL_CONFIG_MAP, LEGACY_OPENCODE_MODEL_MAP } from './opencode-models.js';
 import { GEMINI_MODEL_MAP } from './gemini-models.js';
@@ -343,6 +343,44 @@ export function normalizeModelString(model: string | undefined | null): string {
   }
 
   return model;
+}
+
+/**
+ * Check if a model supports structured output (JSON schema)
+ *
+ * Structured output is a feature that allows the model to return responses
+ * conforming to a JSON schema. Currently supported by:
+ * - Claude models (native Anthropic API support)
+ * - Codex/OpenAI models (via response_format with json_schema)
+ *
+ * Models that do NOT support structured output:
+ * - Cursor models (uses different API format)
+ * - OpenCode models (various backend providers)
+ * - Gemini models (different API)
+ * - Copilot models (proxy to various backends)
+ *
+ * @param model - Model string to check
+ * @returns true if the model supports structured output
+ *
+ * @example
+ * supportsStructuredOutput('sonnet') // true (Claude)
+ * supportsStructuredOutput('claude-sonnet-4-20250514') // true (Claude)
+ * supportsStructuredOutput('codex-gpt-5.2') // true (Codex/OpenAI)
+ * supportsStructuredOutput('cursor-auto') // false
+ * supportsStructuredOutput('gemini-2.5-pro') // false
+ */
+export function supportsStructuredOutput(model: string | undefined | null): boolean {
+  // Exclude proxy providers first - they may have Claude/Codex in the model name
+  // but route through different APIs that don't support structured output
+  if (
+    isCursorModel(model) ||
+    isGeminiModel(model) ||
+    isOpencodeModel(model) ||
+    isCopilotModel(model)
+  ) {
+    return false;
+  }
+  return isClaudeModel(model) || isCodexModel(model);
 }
 
 /**

@@ -319,7 +319,7 @@ export function WorktreeActionsDropdown({
               <DropdownMenuItem onClick={() => onToggleAutoMode(worktree)} className="text-xs">
                 <span className="flex items-center mr-2">
                   <Zap className="w-3.5 h-3.5 text-yellow-500" />
-                  <span className="ml-0.5 h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+                  <span className="ml-1.5 h-2 w-2 rounded-full bg-green-500 animate-pulse" />
                 </span>
                 Stop Auto Mode
               </DropdownMenuItem>

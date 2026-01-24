@@ -274,6 +274,7 @@ export {
   getBareModelId,
   normalizeModelString,
   validateBareModelId,
+  supportsStructuredOutput,
 } from './provider-utils.js';
 
 // Model migration utilities
