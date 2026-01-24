@@ -37,6 +37,9 @@ import { TestLogsPanel } from '@/components/ui/test-logs-panel';
 import { Undo2 } from 'lucide-react';
 import { getElectronAPI } from '@/lib/electron';
 
+/** Threshold for switching from tabs to dropdown layout (number of worktrees) */
+const WORKTREE_DROPDOWN_THRESHOLD = 3;
+
 export function WorktreePanel({
   projectPath,
   onCreateWorktree,
@@ -713,8 +716,8 @@ export function WorktreePanel({
     );
   }
 
-  // Threshold for switching from tabs to dropdown (3+ worktrees total)
-  const useDropdownLayout = worktrees.length >= 3;
+  // Use dropdown layout when worktree count meets or exceeds the threshold
+  const useDropdownLayout = worktrees.length >= WORKTREE_DROPDOWN_THRESHOLD;
 
   // Desktop view: full tabs layout or dropdown layout depending on worktree count
   return (
