@@ -274,49 +274,60 @@ function detectSpecFallback(text: string): boolean {
  * 4. **Problem**: or **Problem Statement**: section (spec/full modes)
  * 5. **Solution**: section as fallback
  *
+ * Note: Uses last match for each pattern to avoid stale summaries
+ * when agent output accumulates across multiple runs.
+ *
  * @param text - The text content to extract summary from
  * @returns The extracted summary string, or null if no summary found
  */
 function extractSummary(text: string): string | null {
-  // Check for explicit <summary> tags first
-  const summaryMatch = text.match(/<summary>([\s\S]*?)<\/summary>/);
+  // Helper to truncate content to first paragraph with max length
+  const truncate = (content: string, maxLength: number): string => {
+    const firstPara = content.split(/\n\n/)[0];
+    return firstPara.length > maxLength ? `${firstPara.substring(0, maxLength)}...` : firstPara;
+  };
+
+  // Helper to get last match from matchAll results
+  const getLastMatch = (matches: IterableIterator<RegExpMatchArray>): RegExpMatchArray | null => {
+    const arr = [...matches];
+    return arr.length > 0 ? arr[arr.length - 1] : null;
+  };
+
+  // Check for explicit <summary> tags first (use last match to avoid stale summaries)
+  const summaryMatches = text.matchAll(/<summary>([\s\S]*?)<\/summary>/g);
+  const summaryMatch = getLastMatch(summaryMatches);
   if (summaryMatch) {
     return summaryMatch[1].trim();
   }
 
-  // Check for ## Summary section
-  const sectionMatch = text.match(/##\s*Summary\s*\n+([\s\S]*?)(?=\n##|\n\*\*|$)/i);
+  // Check for ## Summary section (use last match)
+  const sectionMatches = text.matchAll(/##\s*Summary\s*\n+([\s\S]*?)(?=\n##|\n\*\*|$)/gi);
+  const sectionMatch = getLastMatch(sectionMatches);
   if (sectionMatch) {
-    const content = sectionMatch[1].trim();
-    // Take first paragraph or up to 500 chars
-    const firstPara = content.split(/\n\n/)[0];
-    return firstPara.length > 500 ? firstPara.substring(0, 500) + '...' : firstPara;
+    return truncate(sectionMatch[1].trim(), 500);
   }
 
-  // Check for **Goal**: section (lite mode)
-  const goalMatch = text.match(/\*\*Goal\*\*:\s*(.+?)(?:\n|$)/i);
+  // Check for **Goal**: section (lite mode, use last match)
+  const goalMatches = text.matchAll(/\*\*Goal\*\*:\s*(.+?)(?:\n|$)/gi);
+  const goalMatch = getLastMatch(goalMatches);
   if (goalMatch) {
     return goalMatch[1].trim();
   }
 
-  // Check for **Problem**: or **Problem Statement**: section (spec/full modes)
-  const problemMatch = text.match(
-    /\*\*Problem(?:\s*Statement)?\*\*:\s*([\s\S]*?)(?=\n\d+\.|\n\*\*|$)/i
+  // Check for **Problem**: or **Problem Statement**: section (spec/full modes, use last match)
+  const problemMatches = text.matchAll(
+    /\*\*Problem(?:\s*Statement)?\*\*:\s*([\s\S]*?)(?=\n\d+\.|\n\*\*|$)/gi
   );
+  const problemMatch = getLastMatch(problemMatches);
   if (problemMatch) {
-    const content = problemMatch[1].trim();
-    // Take first paragraph or up to 500 chars
-    const firstPara = content.split(/\n\n/)[0];
-    return firstPara.length > 500 ? firstPara.substring(0, 500) + '...' : firstPara;
+    return truncate(problemMatch[1].trim(), 500);
   }
 
-  // Check for **Solution**: section as fallback
-  const solutionMatch = text.match(/\*\*Solution\*\*:\s*([\s\S]*?)(?=\n\d+\.|\n\*\*|$)/i);
+  // Check for **Solution**: section as fallback (use last match)
+  const solutionMatches = text.matchAll(/\*\*Solution\*\*:\s*([\s\S]*?)(?=\n\d+\.|\n\*\*|$)/gi);
+  const solutionMatch = getLastMatch(solutionMatches);
   if (solutionMatch) {
-    const content = solutionMatch[1].trim();
-    // Take first paragraph or up to 300 chars
-    const firstPara = content.split(/\n\n/)[0];
-    return firstPara.length > 300 ? firstPara.substring(0, 300) + '...' : firstPara;
+    return truncate(solutionMatch[1].trim(), 300);
   }
 
   return null;
@@ -4008,6 +4019,168 @@ This mock response was generated because AUTOMAKER_MOCK_AGENT=true was set.
       );
     }, STREAM_HEARTBEAT_MS);
 
+    // RECOVERY PATH: If we have an approved plan with persisted tasks, skip spec generation
+    // and directly execute the remaining tasks
+    if (existingApprovedPlan && persistedTasks && persistedTasks.length > 0) {
+      logger.info(
+        `Recovery: Resuming task execution for feature ${featureId} with ${persistedTasks.length} tasks`
+      );
+
+      // Get customized prompts for task execution
+      const taskPrompts = await getPromptCustomization(this.settingsService, '[AutoMode]');
+      const approvedPlanContent = existingApprovedPlan.content || '';
+
+      // Execute each task with a separate agent
+      for (let taskIndex = 0; taskIndex < persistedTasks.length; taskIndex++) {
+        const task = persistedTasks[taskIndex];
+
+        // Skip tasks that are already completed
+        if (task.status === 'completed') {
+          logger.info(`Skipping already completed task ${task.id}`);
+          continue;
+        }
+
+        // Check for abort
+        if (abortController.signal.aborted) {
+          throw new Error('Feature execution aborted');
+        }
+
+        // Mark task as in_progress immediately (even without TASK_START marker)
+        await this.updateTaskStatus(projectPath, featureId, task.id, 'in_progress');
+
+        // Emit task started
+        logger.info(`Starting task ${task.id}: ${task.description}`);
+        this.emitAutoModeEvent('auto_mode_task_started', {
+          featureId,
+          projectPath,
+          branchName,
+          taskId: task.id,
+          taskDescription: task.description,
+          taskIndex,
+          tasksTotal: persistedTasks.length,
+        });
+
+        // Update planSpec with current task
+        await this.updateFeaturePlanSpec(projectPath, featureId, {
+          currentTaskId: task.id,
+        });
+
+        // Build focused prompt for this specific task
+        const taskPrompt = this.buildTaskPrompt(
+          task,
+          persistedTasks,
+          taskIndex,
+          approvedPlanContent,
+          taskPrompts.taskExecution.taskPromptTemplate,
+          undefined
+        );
+
+        // Execute task with dedicated agent
+        const taskStream = provider.executeQuery({
+          prompt: taskPrompt,
+          model: bareModel,
+          maxTurns: Math.min(maxTurns || 100, 50),
+          cwd: workDir,
+          allowedTools: allowedTools,
+          abortController,
+          mcpServers: Object.keys(mcpServers).length > 0 ? mcpServers : undefined,
+          credentials,
+          claudeCompatibleProvider,
+        });
+
+        let taskOutput = '';
+        let taskCompleteDetected = false;
+
+        // Process task stream
+        for await (const msg of taskStream) {
+          if (msg.type === 'assistant' && msg.message?.content) {
+            for (const block of msg.message.content) {
+              if (block.type === 'text') {
+                const text = block.text || '';
+                taskOutput += text;
+                responseText += text;
+                this.emitAutoModeEvent('auto_mode_progress', {
+                  featureId,
+                  branchName,
+                  content: text,
+                });
+                scheduleWrite();
+
+                // Detect [TASK_COMPLETE] marker
+                if (!taskCompleteDetected) {
+                  const completeTaskId = detectTaskCompleteMarker(taskOutput);
+                  if (completeTaskId) {
+                    taskCompleteDetected = true;
+                    logger.info(`[TASK_COMPLETE] detected for ${completeTaskId}`);
+                    await this.updateTaskStatus(
+                      projectPath,
+                      featureId,
+                      completeTaskId,
+                      'completed'
+                    );
+                  }
+                }
+              } else if (block.type === 'tool_use') {
+                this.emitAutoModeEvent('auto_mode_tool', {
+                  featureId,
+                  branchName,
+                  tool: block.name,
+                  input: block.input,
+                });
+              }
+            }
+          } else if (msg.type === 'error') {
+            throw new Error(msg.error || `Error during task ${task.id}`);
+          } else if (msg.type === 'result' && msg.subtype === 'success') {
+            taskOutput += msg.result || '';
+            responseText += msg.result || '';
+          }
+        }
+
+        // If no [TASK_COMPLETE] marker was detected, still mark as completed
+        if (!taskCompleteDetected) {
+          await this.updateTaskStatus(projectPath, featureId, task.id, 'completed');
+        }
+
+        // Emit task completed
+        logger.info(`Task ${task.id} completed for feature ${featureId}`);
+        this.emitAutoModeEvent('auto_mode_task_complete', {
+          featureId,
+          projectPath,
+          branchName,
+          taskId: task.id,
+          tasksCompleted: taskIndex + 1,
+          tasksTotal: persistedTasks.length,
+        });
+
+        // Update planSpec with progress
+        await this.updateFeaturePlanSpec(projectPath, featureId, {
+          tasksCompleted: taskIndex + 1,
+        });
+      }
+
+      logger.info(`Recovery: All tasks completed for feature ${featureId}`);
+
+      // Extract and save final summary
+      const summary = extractSummary(responseText);
+      if (summary) {
+        await this.saveFeatureSummary(projectPath, featureId, summary);
+        this.emitAutoModeEvent('auto_mode_summary', {
+          featureId,
+          projectPath,
+          summary,
+        });
+      }
+
+      // Final write and cleanup
+      clearInterval(streamHeartbeat);
+      if (writeTimeout) {
+        clearTimeout(writeTimeout);
+      }
+      await writeToFile();
+      return;
+    }
+
     // Wrap stream processing in try/finally to ensure timeout cleanup on any error/abort
     try {
       streamLoop: for await (const msg of stream) {
@@ -4358,6 +4531,9 @@ After generating the revised spec, output:
                     if (abortController.signal.aborted) {
                       throw new Error('Feature execution aborted');
                     }
+
+                    // Mark task as in_progress immediately (even without TASK_START marker)
+                    await this.updateTaskStatus(projectPath, featureId, task.id, 'in_progress');
 
                     // Emit task started
                     logger.info(`Starting task ${task.id}: ${task.description}`);

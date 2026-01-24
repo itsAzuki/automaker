@@ -179,9 +179,6 @@ export function AddFeatureDialog({
   // Model selection state
   const [modelEntry, setModelEntry] = useState<PhaseModelEntry>({ model: 'claude-opus' });
 
-  // All models support planning mode via marker-based instructions in prompts
-  const modelSupportsPlanningMode = true;
-
   // Planning mode state
   const [planningMode, setPlanningMode] = useState<PlanningMode>('skip');
   const [requirePlanApproval, setRequirePlanApproval] = useState(false);
@@ -562,41 +559,13 @@ export function AddFeatureDialog({
 
             <div className="grid gap-3 grid-cols-2">
               <div className="space-y-1.5">
-                <Label
-                  className={cn(
-                    'text-xs text-muted-foreground',
-                    !modelSupportsPlanningMode && 'opacity-50'
-                  )}
-                >
-                  Planning
-                </Label>
-                {modelSupportsPlanningMode ? (
-                  <PlanningModeSelect
-                    mode={planningMode}
-                    onModeChange={setPlanningMode}
-                    testIdPrefix="add-feature-planning"
-                    compact
-                  />
-                ) : (
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div>
-                          <PlanningModeSelect
-                            mode="skip"
-                            onModeChange={() => {}}
-                            testIdPrefix="add-feature-planning"
-                            compact
-                            disabled
-                          />
-                        </div>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Planning modes are only available for Claude Provider</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                )}
+                <Label className="text-xs text-muted-foreground">Planning</Label>
+                <PlanningModeSelect
+                  mode={planningMode}
+                  onModeChange={setPlanningMode}
+                  testIdPrefix="add-feature-planning"
+                  compact
+                />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">Options</Label>
@@ -620,20 +589,14 @@ export function AddFeatureDialog({
                       id="add-feature-require-approval"
                       checked={requirePlanApproval}
                       onCheckedChange={(checked) => setRequirePlanApproval(!!checked)}
-                      disabled={
-                        !modelSupportsPlanningMode ||
-                        planningMode === 'skip' ||
-                        planningMode === 'lite'
-                      }
+                      disabled={planningMode === 'skip' || planningMode === 'lite'}
                       data-testid="add-feature-require-approval-checkbox"
                     />
                     <Label
                       htmlFor="add-feature-require-approval"
                       className={cn(
                         'text-xs font-normal',
-                        !modelSupportsPlanningMode ||
-                          planningMode === 'skip' ||
-                          planningMode === 'lite'
+                        planningMode === 'skip' || planningMode === 'lite'
                           ? 'cursor-not-allowed text-muted-foreground'
                           : 'cursor-pointer'
                       )}
